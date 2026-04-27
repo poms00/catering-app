@@ -27,15 +27,19 @@ export default function MenuCombobox({
     emptyText = 'Tidak ada item ditemukan.',
     onValueChange,
 }: ReusableComboboxProps) {
+    const selectedItem =
+        value != null
+            ? (items.find((item) => item.id === value) ?? null)
+            : null;
+
     return (
         <Combobox
-            items={items.map((item) => String(item.id))}
-            value={value ? String(value) : undefined}
-            onValueChange={(selectedValue) => {
-                const selected =
-                    items.find((item) => String(item.id) === selectedValue) ??
-                    null;
-
+            items={items}
+            value={selectedItem}
+            itemToStringValue={(item: Option) => String(item.id)}
+            itemToStringLabel={(item: Option) => item.name}
+            isItemEqualToValue={(a: Option, b: Option) => a.id === b.id}
+            onValueChange={(selected: Option | null) => {
                 onValueChange?.(selected);
             }}
         >
@@ -43,21 +47,11 @@ export default function MenuCombobox({
             <ComboboxContent>
                 <ComboboxEmpty>{emptyText}</ComboboxEmpty>
                 <ComboboxList>
-                    {(itemValue) => {
-                        const item = items.find(
-                            (i) => String(i.id) === itemValue,
-                        );
-
-                        if (!item) {
-                            return null;
-                        }
-
-                        return (
-                            <ComboboxItem key={item.id} value={String(item.id)}>
-                                {item.name}
-                            </ComboboxItem>
-                        );
-                    }}
+                    {(item: Option) => (
+                        <ComboboxItem key={item.id} value={item}>
+                            {item.name}
+                        </ComboboxItem>
+                    )}
                 </ComboboxList>
             </ComboboxContent>
         </Combobox>

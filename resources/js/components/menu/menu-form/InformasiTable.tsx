@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -199,10 +199,17 @@ export default function InformasiTable({
     canAddMore = true,
     onTambah,
     onEdit,
+    onReorder,
     onDelete,
 }: InformasiTableProps) {
     const [activeId, setActiveId] = useState<number | null>(null);
     const [items, setItems] = useState<VarianMenu[]>(varianList);
+    const [prevVarianList, setPrevVarianList] = useState(varianList);
+
+    if (varianList !== prevVarianList) {
+        setPrevVarianList(varianList);
+        setItems(varianList);
+    }
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -212,10 +219,6 @@ export default function InformasiTable({
             coordinateGetter: sortableKeyboardCoordinates,
         }),
     );
-
-    useEffect(() => {
-        setItems(varianList);
-    }, [varianList]);
 
     const activeVarian = activeId
         ? (items.find((variant) => variant.id === activeId) ?? null)
