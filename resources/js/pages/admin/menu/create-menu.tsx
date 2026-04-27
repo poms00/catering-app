@@ -33,7 +33,7 @@ export default function CreateMenu({
             sort_order: informasiGrup.sort_order,
             is_active: informasiGrup.is_active,
             image: informasiGrup.image,
-            variants: JSON.stringify(varianList),
+            variants: varianList,
         };
 
         if (grup?.id) {
