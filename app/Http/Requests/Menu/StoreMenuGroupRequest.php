@@ -23,12 +23,12 @@ class StoreMenuGroupRequest extends FormRequest
         return [
             'creates_with_group' => ['required', 'boolean'],
             'menu_category_id' => ['nullable', 'integer', 'exists:menu_categories,id'],
-            'name'             => ['required_if:creates_with_group,true', 'nullable', 'string', 'max:255'],
-            'description'      => ['nullable', 'string'],
-            'sort_order'       => ['nullable', 'integer', 'min:0'],
-            'is_active'        => ['boolean'],
-            'image'            => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
-            'variants'         => ['required', 'array', 'min:1'],
+            'name' => ['required_if:creates_with_group,true', 'nullable', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'is_active' => ['boolean'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
+            'variants' => ['required', 'array', 'min:1'],
             'variants.*.name' => ['required', 'string', 'max:255'],
             'variants.*.base_price' => ['required', 'numeric', 'min:0'],
             'variants.*.description' => ['nullable', 'string'],
@@ -43,12 +43,12 @@ class StoreMenuGroupRequest extends FormRequest
         return [
             'menu_category_id' => 'kategori',
             'creates_with_group' => 'membuat dengan grup',
-            'name'             => 'nama grup',
-            'description'      => 'deskripsi',
-            'sort_order'       => 'urutan',
-            'is_active'        => 'status',
-            'image'            => 'foto grup',
-            'variants'         => 'varian',
+            'name' => 'nama grup',
+            'description' => 'deskripsi',
+            'sort_order' => 'urutan',
+            'is_active' => 'status',
+            'image' => 'foto grup',
+            'variants' => 'varian',
             'variants.*.name' => 'nama varian',
             'variants.*.base_price' => 'harga dasar varian',
             'variants.*.description' => 'deskripsi varian',
@@ -63,6 +63,10 @@ class StoreMenuGroupRequest extends FormRequest
         return [
             function ($validator): void {
                 $variants = $this->input('variants', []);
+
+                if (! is_array($variants)) {
+                    return;
+                }
 
                 if (! $this->boolean('creates_with_group') && count($variants) > 1) {
                     $validator->errors()->add(
