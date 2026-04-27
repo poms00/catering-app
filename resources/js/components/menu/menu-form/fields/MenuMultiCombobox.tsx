@@ -32,7 +32,20 @@ export default function MenuMultiCombobox({
     onValueChange,
 }: MenuMultiComboboxProps) {
     const anchorRef = useComboboxAnchor();
-    const selectedItems = items.filter((item) => value.includes(item.id));
+
+    // ⚡ prevent undefined issues + stable reference
+    const safeValue = value ?? [];
+
+    const selectedItems = items.filter((item) => safeValue.includes(item.id));
+
+    const handleRemove = (id: number) => {
+        const newValue = safeValue.filter((v) => v !== id);
+        onValueChange?.(newValue);
+    };
+
+    const handleChange = (selected: Option[]) => {
+        onValueChange?.(selected.map((s) => s.id));
+    };
 
     return (
         <Combobox
@@ -42,35 +55,34 @@ export default function MenuMultiCombobox({
             itemToStringValue={(item: Option) => String(item.id)}
             itemToStringLabel={(item: Option) => item.name}
             isItemEqualToValue={(a: Option, b: Option) => a.id === b.id}
-            onValueChange={(selected: Option[]) => {
-                onValueChange?.(selected.map((s) => s.id));
-            }}
+            onValueChange={handleChange}
         >
             <ComboboxChips ref={anchorRef}>
-                {(item: Option) => (
-                    <Badge
-                        key={item.id}
-                        variant="secondary"
-                        className="gap-1 pr-1"
-                        data-slot="combobox-chip"
-                    >
-                        {item.name}
-                        <button
-                            type="button"
-                            className="rounded-xs hover:bg-muted-foreground/20"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onValueChange?.(
-                                    value.filter((id) => id !== item.id),
-                                );
-                            }}
+                {/* ❗ FIX: jangan pakai function children kalau API tidak support */}
+                <>
+                    {selectedItems.map((item) => (
+                        <Badge
+                            key={item.id}
+                            variant="secondary"
+                            className="gap-1 pr-1"
                         >
-                            <XIcon className="size-3" />
-                        </button>
-                    </Badge>
-                )}
+                            {item.name}
+                            <button
+                                type="button"
+                                className="rounded-xs hover:bg-muted-foreground/20"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemove(item.id);
+                                }}
+                            >
+                                <XIcon className="size-3" />
+                            </button>
+                        </Badge>
+                    ))}
+                </>
                 <ComboboxChipsInput placeholder={placeholder} />
             </ComboboxChips>
+
             <ComboboxContent anchor={anchorRef}>
                 <ComboboxEmpty>{emptyText}</ComboboxEmpty>
                 <ComboboxList>

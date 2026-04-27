@@ -1,7 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 
-import MenuForm from '@/components/menu/modal-form';
-
+import FormMenu from '@/components/menu/menu-form/Form-menu';
 import { useMenuForm } from '@/hooks/menu/useMenuForm';
 
 import menuRoutes from '@/routes/menu';
@@ -20,10 +19,8 @@ export default function EditMenu({ menu, menuGroups }: EditMenuProps) {
         <>
             <Head title="Edit Menu" />
 
-            <MenuForm
-                open={true}
-                title="Edit Menu"
-                description={`Perbarui detail untuk ${menu.name}.`}
+            <FormMenu
+                menuCategories={[]} // Add appropriate categories if available
                 menuGroups={menuGroups}
                 initialData={form}
                 submitLabel="Simpan perubahan"

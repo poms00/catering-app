@@ -39,17 +39,17 @@ export default function CreateMenu({
         if (grup?.id) {
             router.post(
                 menuRoutes.update.url(grup.id),
-                {
+                ({
                     ...payload,
                     _method: 'put',
-                },
+                } as any),
                 { preserveScroll: true },
             );
 
             return;
         }
 
-        router.post(menuRoutes.store.url(), payload);
+        router.post(menuRoutes.store.url(), payload as any);
     };
 
     const handleBatal = () => {

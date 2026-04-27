@@ -13,7 +13,7 @@ interface ShowMenuProps {
 
 export default function ShowMenu({
     group,
-    canEdit = false,
+    canEdit = true,
 }: ShowMenuProps) {
     return (
         <>
@@ -24,10 +24,17 @@ export default function ShowMenu({
                     description={group.description ?? undefined}
                     showBack={true}
                     onBack={() => router.visit(menuRoutes.index().url)}
-                    actionTitle={canEdit ? 'Edit' : undefined}
-                    actionHref={ canEdit ? menuRoutes.edit.url(group.id) : undefined
+                    actions={
+                        canEdit
+                            ? [
+                                  {
+                                      title: 'Edit',
+                                      href: menuRoutes.edit.url(group.id),
+                                      icon: <SquarePen className="h-4 w-4" />,
+                                  },
+                              ]
+                            : []
                     }
-                    actionIcon={<SquarePen className="h-4 w-4" />}
                 />
 
                 <AppDetailMenu group={group} />
