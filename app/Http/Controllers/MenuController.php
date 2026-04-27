@@ -2,16 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Menu\IndexDataAction;
 use App\Actions\Menu\MenuCategoryAction;
 use App\Actions\Menu\MenuGroupAction;
 use App\Actions\Menu\MenuImageAction;
 use App\Actions\Menu\MenuItemAction;
-use App\Actions\Menu\IndexDataAction;
 use App\Http\Requests\Menu\ReorderRequest;
-use App\Http\Requests\Menu\StoreMenuCategoryRequest;
 use App\Http\Requests\Menu\StoreMenuGroupRequest;
 use App\Http\Requests\Menu\StoreMenuItemRequest;
-use App\Http\Requests\Menu\UpdateMenuCategoryRequest;
 use App\Http\Requests\Menu\UpdateMenuGroupRequest;
 use App\Http\Requests\Menu\UpdateMenuItemRequest;
 use App\Models\MenuCategory;
@@ -20,7 +18,6 @@ use App\Models\MenuImage;
 use App\Models\MenuItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Inertia\Response;
 
 class MenuController extends Controller
@@ -31,8 +28,7 @@ class MenuController extends Controller
         private readonly MenuItemAction $itemAction,
         private readonly MenuImageAction $imageAction,
         private readonly IndexDataAction $indexDataAction,
-    ) {
-    }
+    ) {}
 
     /* ════════════════════════════════════════
        GRUP
@@ -41,17 +37,16 @@ class MenuController extends Controller
     public function index(): Response
     {
         $menuItems = $this->indexDataAction->menuItems()
-            ->map(fn(MenuItem $item) => $this->itemAction->index($item));
+            ->map(fn (MenuItem $item) => $this->itemAction->index($item));
 
         $menuGroups = $this->indexDataAction->menuGroups()
-            ->map(fn(MenuGroup $group) => $this->groupAction->index($group));
+            ->map(fn (MenuGroup $group) => $this->groupAction->index($group));
 
         $menuCategories = $this->indexDataAction->menuCategories()
-            ->map(fn(MenuCategory $category) => $this->categoryAction->index($category));
+            ->map(fn (MenuCategory $category) => $this->categoryAction->index($category));
 
         return inertia('admin/menu/index', compact('menuItems', 'menuGroups', 'menuCategories'));
     }
-
 
     public function create(): Response
     {
@@ -63,14 +58,36 @@ class MenuController extends Controller
 
     public function store(StoreMenuGroupRequest $request): RedirectResponse
     {
-        $group = $this->groupAction->create(
-            data: $request->validated(),
-            image: $request->file('image'),
-        );
+        $validated = $request->validated();
+        $variants = $validated['variants'];
+
+        if ($request->boolean('creates_with_group')) {
+            $group = $this->groupAction->create(
+                data: $validated,
+                image: $request->file('image'),
+            );
+
+            foreach ($variants as $variant) {
+                $this->itemAction->create([
+                    ...$variant,
+                    'menu_group_id' => $group->id,
+                ]);
+            }
+
+            return redirect()
+                ->route('menu.show', $group)
+                ->with('success', "Grup \"{$group->name}\" berhasil dibuat.");
+        }
+
+        $variant = $variants[0];
+        $item = $this->itemAction->create([
+            ...$variant,
+            'is_default' => true,
+        ]);
 
         return redirect()
-            ->route('menu.show', $group)
-            ->with('success', "Grup \"{$group->name}\" berhasil dibuat.");
+            ->route('menu.show', ['menu' => $item, 'type' => 'item'])
+            ->with('success', "Menu \"{$item->name}\" berhasil dibuat.");
     }
 
     public function show(Request $request, string $menu): Response
@@ -84,9 +101,9 @@ class MenuController extends Controller
         if ($group instanceof MenuGroup) {
             $group->load([
                 'menuCategory:id,name',
-                'images' => fn($q) => $q->orderBy('sort_order'),
-                'menuItems' => fn($q) => $q->ordered(),
-                'menuItems.images' => fn($q) => $q->orderBy('sort_order'),
+                'images' => fn ($q) => $q->orderBy('sort_order'),
+                'menuItems' => fn ($q) => $q->ordered(),
+                'menuItems.images' => fn ($q) => $q->orderBy('sort_order'),
             ]);
 
             return inertia('admin/menu/show-detail-menu', [
@@ -103,7 +120,7 @@ class MenuController extends Controller
         $item = MenuItem::query()
             ->whereNull('menu_group_id')
             ->with([
-                'images' => fn($q) => $q->orderBy('sort_order'),
+                'images' => fn ($q) => $q->orderBy('sort_order'),
             ])
             ->findOrFail($itemId);
 
@@ -138,7 +155,7 @@ class MenuController extends Controller
                         'updated_at' => $item->updated_at?->toISOString(),
                         'created_by' => $item->created_by,
                         'updated_by' => $item->updated_by,
-                        'images' => $item->images->map(fn(MenuImage $image) => [
+                        'images' => $item->images->map(fn (MenuImage $image) => [
                             'id' => $image->id,
                             'menu_item_id' => $image->menu_item_id,
                             'menu_group_id' => $image->menu_group_id,
@@ -164,14 +181,14 @@ class MenuController extends Controller
 
         $group->load([
             'menuCategory:id,name',
-            'images' => fn($q) => $q->orderBy('sort_order'),
-            'menuItems' => fn($q) => $q->ordered(),
-            'menuItems.images' => fn($q) => $q->orderBy('sort_order'),
+            'images' => fn ($q) => $q->orderBy('sort_order'),
+            'menuItems' => fn ($q) => $q->ordered(),
+            'menuItems.images' => fn ($q) => $q->orderBy('sort_order'),
         ]);
 
         $categories = MenuCategory::active()->ordered()->get(['id', 'name']);
 
-        $itemList = $group->menuItems->map(fn(MenuItem $item) => [
+        $itemList = $group->menuItems->map(fn (MenuItem $item) => [
             'id' => $item->id,
             'name' => $item->name,
             'image_url' => $item->images->first()?->image_url,
@@ -288,5 +305,4 @@ class MenuController extends Controller
 
         return back()->with('success', 'Foto berhasil dihapus.');
     }
-
 }
