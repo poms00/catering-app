@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useState } from 'react';
 import MenuCombobox from '@/components/menu/menu-form/fields/MenuCombobox';
+import MenuMultiCombobox from '@/components/menu/menu-form/fields/MenuMultiCombobox';
 import { Button } from '@/components/ui/button';
 import { CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ export type MenuGroupOption = Pick<MenuGroup, 'id' | 'name'>;
 export type MenuFormData = MenuItemForm & {
     requires_group: boolean;
     menu_group_name: string;
-    menu_category_id: number | null;
+    menu_category_ids: number[];
     menu_category_name: string;
     imagePreview: string | null;
 };
@@ -44,7 +45,7 @@ export function createMenuForm(): MenuFormData {
         image: null,
         requires_group: false,
         menu_group_name: '',
-        menu_category_id: null,
+        menu_category_ids: [],
         menu_category_name: '',
         imagePreview: null,
     };
@@ -62,7 +63,7 @@ export function mapMenuToForm(menu: MenuItem): MenuFormData {
         image: null,
         requires_group: menu.menu_group_id !== null,
         menu_group_name: '',
-        menu_category_id: menu.menu_category_id ?? null,
+        menu_category_ids: menu.menu_category_id ? [menu.menu_category_id] : [],
         menu_category_name: '',
         imagePreview:
             typeof menu.primary_image === 'string'
@@ -87,7 +88,6 @@ export default function FormMenu({
     });
 
     useEffect(() => {
-        
         setForm({
             ...createMenuForm(),
             ...initialData,
@@ -95,10 +95,14 @@ export default function FormMenu({
     }, [initialData]);
 
     const filteredGroups = useMemo(() => {
-        return menuGroups.filter(
-            (group) => group.menu_category_id === form.menu_category_id,
+        if (form.menu_category_ids.length === 0) {
+            return menuGroups;
+        }
+
+        return menuGroups.filter((group) =>
+            form.menu_category_ids.includes(group.menu_category_id),
         );
-    }, [menuGroups, form.menu_category_id]);
+    }, [menuGroups, form.menu_category_ids]);
 
     function set<K extends keyof MenuFormData>(key: K, value: MenuFormData[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -147,11 +151,13 @@ export default function FormMenu({
             {/* CATEGORY */}
             <div className="space-y-2">
                 <Label className="text-sm font-medium">Kategori Menu</Label>
-                <MenuCombobox
+                <MenuMultiCombobox
                     items={menuCategories}
-                    value={form.menu_category_id}
-                    onValueChange={(option) => {
-                        set('menu_category_id', option?.id ?? null);
+                    value={form.menu_category_ids}
+                    placeholder="Pilih kategori"
+                    emptyText="Tidak ada kategori ditemukan."
+                    onValueChange={(ids) => {
+                        set('menu_category_ids', ids);
                         set('menu_group_id', null);
                     }}
                 />
