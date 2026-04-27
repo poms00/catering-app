@@ -161,4 +161,25 @@ class StoreMenuTest extends TestCase
         $this->assertDatabaseCount('menu_items', 0);
         $this->assertDatabaseCount('menu_groups', 0);
     }
+
+    public function test_store_menu_with_non_array_variants_returns_validation_error(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->from(route('menu.create'))
+            ->post(route('menu.store'), [
+                'creates_with_group' => '0',
+                'variants' => 'not-an-array',
+            ]);
+
+        $response
+            ->assertRedirect(route('menu.create'))
+            ->assertSessionHasErrors([
+                'variants',
+            ]);
+
+        $this->assertDatabaseCount('menu_items', 0);
+        $this->assertDatabaseCount('menu_groups', 0);
+    }
 }
