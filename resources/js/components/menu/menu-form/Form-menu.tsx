@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import MenuCombobox from '@/components/menu/menu-form/fields/MenuCombobox';
 import MenuMultiCombobox from '@/components/menu/menu-form/fields/MenuMultiCombobox';
 import { Button } from '@/components/ui/button';
@@ -94,15 +94,7 @@ export default function FormMenu({
         });
     }, [initialData]);
 
-    const filteredGroups = useMemo(() => {
-        if (form.menu_category_ids.length === 0) {
-            return menuGroups;
-        }
-
-        return menuGroups.filter((group) =>
-            form.menu_category_ids.includes(group.menu_category_id),
-        );
-    }, [menuGroups, form.menu_category_ids]);
+  
 
     function set<K extends keyof MenuFormData>(key: K, value: MenuFormData[K]) {
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -151,15 +143,15 @@ export default function FormMenu({
             {/* CATEGORY */}
             <div className="space-y-2">
                 <Label className="text-sm font-medium">Kategori Menu</Label>
+                {/* CATEGORY */}
+                {/* CATEGORY */}
                 <MenuMultiCombobox
+                    key={menuCategories.length}
                     items={menuCategories}
                     value={form.menu_category_ids}
                     placeholder="Pilih kategori"
                     emptyText="Tidak ada kategori ditemukan."
-                    onValueChange={(ids) => {
-                        set('menu_category_ids', ids);
-                        set('menu_group_id', null);
-                    }}
+                    onValueChange={(ids) => set('menu_category_ids', ids)}
                 />
             </div>
 
@@ -167,7 +159,8 @@ export default function FormMenu({
             <div className="space-y-2">
                 <Label className="text-sm font-medium">Grup Menu</Label>
                 <MenuCombobox
-                    items={filteredGroups}
+                    key={form.menu_category_ids.join(',')}
+                    items={menuGroups}
                     value={form.menu_group_id}
                     onValueChange={(option) =>
                         set('menu_group_id', option?.id ?? null)

@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import Heading from '@/components/heading';
 import EditGrup from '@/components/menu/menu-form/EditGrup';
@@ -19,38 +19,42 @@ export default function CreateMenu({
 }) {
     const [saveRequestId, setSaveRequestId] = useState(0);
 
-    const handleSimpan = ({
-        informasiGrup,
-        varianList,
-    }: {
-        informasiGrup: any;
-        varianList: VarianMenu[];
-    }) => {
-        const payload = {
-            creates_with_group: informasiGrup.creates_with_group,
-            name: informasiGrup.name,
-            description: informasiGrup.description,
-            sort_order: informasiGrup.sort_order,
-            is_active: informasiGrup.is_active,
-            image: informasiGrup.image,
-            variants: varianList,
-        };
+    const handleSimpan = useCallback(
+        ({
+            informasiGrup,
+            varianList,
+        }: {
+            informasiGrup: any;
+            varianList: VarianMenu[];
+        }) => {
+            const payload = {
+                creates_with_group: informasiGrup.creates_with_group,
+                menu_group_id: informasiGrup.menu_group_id,
+                name: informasiGrup.name,
+                description: informasiGrup.description,
+                sort_order: informasiGrup.sort_order,
+                is_active: informasiGrup.is_active,
+                image: informasiGrup.image,
+                variants: varianList,
+            };
 
-        if (grup?.id) {
-            router.post(
-                menuRoutes.update.url(grup.id),
-                ({
-                    ...payload,
-                    _method: 'put',
-                } as any),
-                { preserveScroll: true },
-            );
+            if (grup?.id) {
+                router.post(
+                    menuRoutes.update.url(grup.id),
+                    {
+                        ...payload,
+                        _method: 'put',
+                    } as any,
+                    { preserveScroll: true },
+                );
 
-            return;
-        }
+                return;
+            }
 
-        router.post(menuRoutes.store.url(), payload as any);
-    };
+            router.post(menuRoutes.store.url(), payload as any);
+        },
+        [grup],
+    );
 
     const handleBatal = () => {
         router.visit(menuRoutes.index().url);

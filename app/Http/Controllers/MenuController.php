@@ -61,6 +61,23 @@ class MenuController extends Controller
         $validated = $request->validated();
         $variants = $validated['variants'];
 
+        // Pakai grup yang sudah ada
+        if (!empty($validated['menu_group_id'])) {
+            $group = MenuGroup::findOrFail($validated['menu_group_id']);
+
+            foreach ($variants as $variant) {
+                $this->itemAction->create([
+                    ...$variant,
+                    'menu_group_id' => $group->id,
+                ]);
+            }
+
+            return redirect()
+                ->route('menu.show', $group)
+                ->with('success', "Menu berhasil ditambahkan ke grup \"{$group->name}\".");
+        }
+
+        // Buat grup baru
         if ($request->boolean('creates_with_group')) {
             $group = $this->groupAction->create(
                 data: $validated,
@@ -79,6 +96,7 @@ class MenuController extends Controller
                 ->with('success', "Grup \"{$group->name}\" berhasil dibuat.");
         }
 
+        // Standalone item
         $variant = $variants[0];
         $item = $this->itemAction->create([
             ...$variant,
