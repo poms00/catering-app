@@ -16,7 +16,7 @@ export type InformasiGrupForm = {
     sort_order: number;
     is_active: boolean;
     image: File | null;
-    menu_category_id: number | null;
+    menu_category_ids: number[];
 };
 
 export function createInformasiGrupForm(
@@ -29,7 +29,9 @@ export function createInformasiGrupForm(
         sort_order: grup?.sort_order ?? 1,
         is_active: grup?.is_active ?? true,
         image: null,
-        menu_category_id: grup?.menu_category_id ?? null,
+        menu_category_ids: grup?.menu_category_id
+            ? [grup.menu_category_id]
+            : [],
     };
 }
 
