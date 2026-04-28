@@ -9,11 +9,13 @@ import type { MenuGroup } from '@/types/menu/types';
 interface ShowMenuProps {
     group: MenuGroup;
     canEdit?: boolean;
+    menuType?: 'group' | 'item';
 }
 
 export default function ShowMenu({
     group,
     canEdit = true,
+    menuType = 'group',
 }: ShowMenuProps) {
     return (
         <>
@@ -29,7 +31,12 @@ export default function ShowMenu({
                             ? [
                                   {
                                       title: 'Edit',
-                                      href: menuRoutes.edit.url(group.id),
+                                      href: menuRoutes.edit.url(
+                                          group.id,
+                                          menuType === 'item'
+                                              ? { query: { type: 'item' } }
+                                              : undefined,
+                                      ),
                                       icon: <SquarePen className="h-4 w-4" />,
                                   },
                               ]

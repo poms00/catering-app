@@ -1,0 +1,197 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /dashboard
+                    - generic:
+                      - img
+                    - generic:
+                      - generic: Laravel Starter Kit
+            - generic:
+              - generic:
+                - generic: Platform
+                - list:
+                  - listitem:
+                    - link:
+                      - /url: /dashboard
+                      - img
+                      - generic: Dashboard
+                  - listitem:
+                    - link:
+                      - /url: /menu
+                      - img
+                      - generic: Menu
+            - generic:
+              - generic:
+                - generic:
+                  - list:
+                    - listitem:
+                      - link:
+                        - /url: https://github.com/laravel/react-starter-kit
+                        - img
+                        - generic: Repository
+                    - listitem:
+                      - link:
+                        - /url: https://laravel.com/docs/starter-kits#react
+                        - img
+                        - generic: Documentation
+              - list:
+                - listitem:
+                  - button:
+                    - generic:
+                      - generic: CT
+                    - generic:
+                      - generic: Codex Test
+                    - img
+      - main:
+        - generic:
+          - generic:
+            - button:
+              - img
+              - generic: Toggle sidebar
+            - navigation:
+              - list:
+                - listitem:
+                  - link:
+                    - /url: /menu
+                    - text: Menu
+                - listitem:
+                  - img
+                - listitem:
+                  - link [disabled]: Detail
+                - listitem:
+                  - img
+                - listitem:
+                  - link [disabled]: Edit
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - button:
+                      - img
+                    - heading [level=1]: Edit Menu
+                  - paragraph: Perbarui menu single pada halaman edit yang sama.
+                - generic:
+                  - button:
+                    - generic: Batal
+                  - button:
+                    - generic: Simpan Perubahan
+          - generic:
+            - main:
+              - heading [level=2]: Informasi Varian
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=3]: Varian Menu
+                    - paragraph: Tambah, edit, hapus, dan urutkan varian dalam grup ini.
+                    - paragraph: Urutan 1 otomatis menjadi varian default.
+                    - paragraph: Mode edit varian aktif
+                  - button:
+                    - img
+                    - text: Tambah Varian
+                - generic:
+                  - generic:
+                    - table:
+                      - rowgroup:
+                        - row:
+                          - columnheader
+                          - columnheader: Urutan
+                          - columnheader: Foto
+                          - columnheader: Nama Varian
+                          - columnheader: Harga Dasar
+                          - columnheader: Status
+                          - columnheader: Aksi
+                      - rowgroup:
+                        - row:
+                          - cell:
+                            - button:
+                              - img
+                          - cell:
+                            - generic: "1"
+                          - cell:
+                            - generic:
+                              - generic:
+                                - img
+                          - cell:
+                            - textbox: Debug Single Item
+                          - cell:
+                            - generic:
+                              - generic: Rp
+                              - textbox: 12.000,00
+                          - cell:
+                            - switch [checked]
+                          - cell:
+                            - generic:
+                              - button:
+                                - img
+                              - button:
+                                - img
+                  - status
+                - paragraph: Total 1 varian
+    - region "Notifications alt+T"
+  - dialog "Edit Varian Menu" [ref=e156]:
+    - generic [ref=e157]:
+      - heading [level=2] [ref=e195]: Edit Varian Menu
+      - paragraph [ref=e159]: Lengkapi informasi menu, foto, kategori, dan grup sebelum menyimpan varian ini.
+    - generic [ref=e160]:
+      - generic [ref=e161]:
+        - text: Foto Menu
+        - generic [ref=e162]:
+          - button [ref=e196] [cursor=pointer]:
+            - generic [ref=e164]:
+              - img [ref=e165]
+              - generic [ref=e169]: Klik untuk upload
+          - generic [ref=e170]: JPG, PNG · maks 1MB
+      - generic [ref=e171]:
+        - text: Kategori Menu
+        - combobox [ref=e197]
+        - textbox [ref=e174]
+      - generic [ref=e175]:
+        - text: Grup Menu
+        - group [ref=e176]:
+          - button "Dismiss" [ref=e198]
+          - combobox "Pilih item" [expanded] [active] [ref=e177]
+          - group [ref=e178]:
+            - button [expanded] [ref=e179]:
+              - img
+        - textbox [ref=e180]
+      - generic [ref=e181]:
+        - text: Nama Menu
+        - textbox [ref=e199]: Debug Single Item
+      - generic [ref=e183]:
+        - text: Harga
+        - spinbutton [ref=e200]: "12000.00"
+      - generic [ref=e185]:
+        - text: Deskripsi Menu
+        - textbox [ref=e201]: Single item
+      - generic [ref=e187]:
+        - switch [checked] [ref=e202]
+        - checkbox [checked]
+        - generic [ref=e189]: Aktif
+      - generic [ref=e190]:
+        - button [ref=e203]: Simpan Varian
+        - button [ref=e204]: Batal
+    - button [ref=e205]:
+      - img
+      - generic [ref=e194]: Close
+  - generic:
+    - generic:
+      - listbox:
+        - option "233232"
+        - option "Ayam"
+        - option "ayam kategori"
+        - option "dddd"
+        - option "sddfdsf"
+        - option "sdsfdffs"
+        - option "tttt"
+        - option "hh"
+        - option "Debug Group"
+    - button "Dismiss"

@@ -2,58 +2,52 @@ import { Head, router } from '@inertiajs/react';
 import { useCallback, useState } from 'react';
 
 import Heading from '@/components/heading';
-import EditGrup from '@/components/menu/menu-form/EditGrup';
-import type { VarianMenu } from '@/components/menu/menu-form/InformasiTable';
+import CreateMenuBuilder from '@/components/menu/menu-form/CreateMenuBuilder';
+import type {
+    CategoryDraft,
+    CreateMenuBuilderEntryPayload,
+} from '@/components/menu/menu-form/CreateMenuBuilder';
 import menuRoutes from '@/routes/menu';
 
+type CreateMenuPayload = {
+    entries: CreateMenuBuilderEntryPayload[];
+    category_drafts: CategoryDraft[];
+};
+
+function buildMenuPayload(
+    entries: CreateMenuBuilderEntryPayload[],
+    categoryDrafts: CategoryDraft[],
+): CreateMenuPayload {
+    return {
+        entries,
+        category_drafts: categoryDrafts,
+    };
+}
+
 export default function CreateMenu({
-    grup,
-    varianList,
     menuCategories,
     menuGroups,
 }: {
-    grup: any;
-    varianList: any[];
     menuCategories: { id: number; name: string }[];
-    menuGroups: { id: number; name: string; menu_category_id: number }[];
+    menuGroups: { id: number; name: string; menu_category_id: number | null }[];
 }) {
     const [saveRequestId, setSaveRequestId] = useState(0);
 
     const handleSimpan = useCallback(
         ({
-            informasiGrup,
-            varianList,
+            entries,
+            categoryDrafts,
         }: {
-            informasiGrup: any;
-            varianList: VarianMenu[];
+            entries: CreateMenuBuilderEntryPayload[];
+            categoryDrafts: CategoryDraft[];
         }) => {
-            const payload = {
-                creates_with_group: informasiGrup.creates_with_group,
-                menu_group_id: informasiGrup.menu_group_id,
-                name: informasiGrup.name,
-                description: informasiGrup.description,
-                sort_order: informasiGrup.sort_order,
-                is_active: informasiGrup.is_active,
-                image: informasiGrup.image,
-                variants: varianList,
-            };
+            const payload = buildMenuPayload(entries, categoryDrafts);
 
-            if (grup?.id) {
-                router.post(
-                    menuRoutes.update.url(grup.id),
-                    {
-                        ...payload,
-                        _method: 'put',
-                    } as any,
-                    { preserveScroll: true },
-                );
-
-                return;
-            }
-
-            router.post(menuRoutes.store.url(), payload as any);
+            router.post(menuRoutes.store.url(), payload as any, {
+                forceFormData: true,
+            });
         },
-        [grup],
+        [],
     );
 
     const handleBatal = () => {
@@ -84,13 +78,10 @@ export default function CreateMenu({
                     ]}
                 />
 
-                <EditGrup
-                    grup={grup}
-                    varianList={varianList ?? []}
+                <CreateMenuBuilder
                     menuCategories={menuCategories}
                     menuGroups={menuGroups}
                     saveRequestId={saveRequestId}
-                    onCancel={handleBatal}
                     onSave={handleSimpan}
                 />
             </div>

@@ -131,6 +131,7 @@ export interface MenuItem {
     id: number;
     menu_group_id: number | null;
     menu_category_id: number | null;
+    menu_category_ids?: number[];
     name: string;
     slug: string;
     base_price: number;
@@ -143,14 +144,13 @@ export interface MenuItem {
     created_by: number | null;
     updated_by: number | null;
 
-
-
     // Relations (eager loaded)
     images?: MenuImage[];
     primary_image?: MenuImage | string | null;
     group?: MenuGroupSummary | null;
     menu_group?: MenuGroupSummary | null;
     menu_category?: MenuCategorySummary | null;
+    menu_categories?: MenuCategorySummary[];
 }
 
 /** Summary — dipakai dalam list / table varian */

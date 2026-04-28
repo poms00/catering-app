@@ -4,17 +4,25 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface ImageUploadProps {
+    id?: string;
+    name?: string;
     preview: string | null;
     onChange: (file: File) => void;
     onRemove: () => void;
     disabled?: boolean;
+    containerClassName?: string;
+    uploadClassName?: string;
 }
 
 export default function ImageUpload({
+    id,
+    name,
     preview,
     onChange,
     onRemove,
     disabled = false,
+    containerClassName,
+    uploadClassName,
 }: ImageUploadProps) {
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -27,7 +35,12 @@ export default function ImageUpload({
     };
 
     return (
-        <div className="flex flex-col items-center gap-1.5">
+        <div
+            className={cn(
+                'flex flex-col items-center gap-1.5',
+                containerClassName,
+            )}
+        >
             {/* Upload area */}
             <button
                 type="button"
@@ -37,6 +50,7 @@ export default function ImageUpload({
                     'group relative flex h-[200px] w-[200px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-border/80 bg-muted/30 transition-colors',
                     'hover:border-primary/50 hover:bg-muted/50',
                     disabled && 'cursor-not-allowed opacity-60',
+                    uploadClassName,
                 )}
             >
                 {preview ? (
@@ -62,6 +76,8 @@ export default function ImageUpload({
 
             <input
                 ref={inputRef}
+                id={id}
+                name={name}
                 type="file"
                 accept="image/*"
                 onChange={handleChange}

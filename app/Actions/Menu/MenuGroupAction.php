@@ -2,9 +2,10 @@
 
 namespace App\Actions\Menu;
 
-use App\Models\MenuCategory;
 use App\Models\MenuGroup;
+use App\Models\MenuItem;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -12,12 +13,13 @@ class MenuGroupAction
 {
     public function __construct(
         private readonly MenuImageAction $imageAction,
-    ) {
-    }
+        private readonly MenuItemAction $itemAction,
+    ) {}
 
     public function index(MenuGroup $group): array
     {
         $category = $group->menuCategory;
+
         return [
             'id' => $group->id,
             'menu_category_id' => $group->menu_category_id,
@@ -91,10 +93,10 @@ class MenuGroupAction
             // Load semua relasi yang dibutuhkan sekaligus — 2 query saja
             $group->load(['images', 'items.images']);
 
-            $group->images->each(fn($img) => $this->imageAction->delete($img));
+            $group->images->each(fn ($img) => $this->imageAction->delete($img));
 
             $group->items->each(function ($item) {
-                $item->images->each(fn($img) => $this->imageAction->delete($img));
+                $item->images->each(fn ($img) => $this->imageAction->delete($img));
                 $item->delete();
             });
 
@@ -109,6 +111,59 @@ class MenuGroupAction
                 MenuGroup::whereKey($id)->update(['sort_order' => $sortOrder + 1]);
             }
         });
+    }
+
+    public function syncVariants(MenuGroup $group, array $variants): void
+    {
+        $existingItems = $group->menuItems()->get()->keyBy('id');
+        $submittedExistingIds = collect($variants)
+            ->pluck('id')
+            ->filter(fn (mixed $id): bool => is_numeric($id))
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $existingItems->has($id));
+
+        $this->deleteMissingVariants($existingItems, $submittedExistingIds);
+
+        foreach ($variants as $index => $variant) {
+            $image = $variant['image'] ?? null;
+            $targetGroupId = array_key_exists('menu_group_id', $variant)
+                ? $variant['menu_group_id']
+                : $group->id;
+            $payload = [
+                ...$variant,
+                'menu_group_id' => $targetGroupId,
+                'sort_order' => $variant['sort_order'] ?? ($index + 1),
+            ];
+
+            $variantId = $payload['id'] ?? null;
+
+            if (is_numeric($variantId) && $existingItems->has((int) $variantId)) {
+                $this->itemAction->update(
+                    item: $existingItems->get((int) $variantId),
+                    data: $payload,
+                    image: $image,
+                );
+
+                continue;
+            }
+
+            $this->itemAction->create(data: $payload, image: $image);
+        }
+    }
+
+    /**
+     * @param  Collection<int, MenuItem>  $existingItems
+     * @param  Collection<int, int>  $submittedExistingIds
+     */
+    private function deleteMissingVariants(
+        Collection $existingItems,
+        Collection $submittedExistingIds,
+    ): void {
+        $existingItems
+            ->filter(
+                fn (MenuItem $item): bool => ! $submittedExistingIds->contains($item->id),
+            )
+            ->each(fn (MenuItem $item) => $this->itemAction->delete($item));
     }
 
     private function nextSortOrder(): int

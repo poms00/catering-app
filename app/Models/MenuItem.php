@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -15,6 +16,7 @@ class MenuItem extends Model
 
     protected $fillable = [
         'menu_group_id',
+        'menu_category_id',
         'name',
         'slug',
         'base_price',
@@ -38,6 +40,17 @@ class MenuItem extends Model
     public function menuGroup(): BelongsTo
     {
         return $this->belongsTo(MenuGroup::class);
+    }
+
+    public function menuCategory(): BelongsTo
+    {
+        return $this->belongsTo(MenuCategory::class);
+    }
+
+    public function menuCategories(): BelongsToMany
+    {
+        return $this->belongsToMany(MenuCategory::class)
+            ->withTimestamps();
     }
 
     public function images(): HasMany

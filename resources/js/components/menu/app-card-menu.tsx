@@ -18,6 +18,10 @@ interface CardMenuProps {
 
 export default function AppCardMenu({ item, items, href }: CardMenuProps) {
     const variants = items;
+    const imageUrl =
+        typeof item.primary_image === 'string'
+            ? item.primary_image
+            : (item.primary_image?.image_url ?? null);
 
     const isSingle = variants.length <= 1;
 
@@ -42,7 +46,7 @@ export default function AppCardMenu({ item, items, href }: CardMenuProps) {
     const preview = `${variants.length} pilihan`;
 
     return (
-        <Item className="group overflow-hidden rounded-2xl border bg-background p-3 shadow-sm transition-all  hover:shadow-md">
+        <Item className="group overflow-hidden rounded-2xl border bg-background p-3 shadow-sm transition-all hover:shadow-md">
             <Link href={href} className="block w-full max-w-xs">
                 {/* IMAGE */}
                 <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted">
@@ -55,9 +59,9 @@ export default function AppCardMenu({ item, items, href }: CardMenuProps) {
                         </Badge>
                     </ItemActions>
 
-                    {item.menu_images ? (
+                    {imageUrl ? (
                         <img
-                            src={item.menu_images}
+                            src={imageUrl}
                             alt={item.name}
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
@@ -72,7 +76,7 @@ export default function AppCardMenu({ item, items, href }: CardMenuProps) {
             {/* HEADER */}
             <ItemHeader>
                 <div>
-                    <ItemTitle className="line-clamp-1 text-sm font-medium text-base">
+                    <ItemTitle className="line-clamp-1 text-base text-sm font-medium">
                         {title}
                     </ItemTitle>
 

@@ -41,6 +41,11 @@ class MenuGroup extends Model
         return $this->hasMany(MenuItem::class);
     }
 
+    public function items(): HasMany
+    {
+        return $this->menuItems();
+    }
+
     public function packageItems(): HasMany
     {
         return $this->hasMany(PackageItem::class);

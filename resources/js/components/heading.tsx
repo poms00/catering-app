@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -25,6 +25,22 @@ export default function Heading({
     onBack?: () => void;
     actions?: HeadingAction[];
 }) {
+    function handleActionClick(action: HeadingAction): void {
+        if (action.href) {
+            if (/^https?:\/\//.test(action.href)) {
+                window.location.assign(action.href);
+
+                return;
+            }
+
+            router.visit(action.href);
+
+            return;
+        }
+
+        action.onClick?.();
+    }
+
     return (
         <header className={variant === 'small' ? '' : 'mb-8'}>
             <div className="flex flex-col gap-2">
@@ -34,6 +50,7 @@ export default function Heading({
                         <div className="flex items-center gap-2">
                             {showBack && (
                                 <button
+                                    type="button"
                                     onClick={onBack}
                                     className="-ml-2 rounded-md p-2 transition hover:bg-muted active:scale-95"
                                 >
@@ -69,37 +86,18 @@ export default function Heading({
                             {actions.map((action, index) => (
                                 <Button
                                     key={index}
-                                    asChild={!!action.href}
+                                    type="button"
                                     variant={action.variant || 'default'}
-                                    onClick={
-                                        !action.href
-                                            ? action.onClick
-                                            : undefined
-                                    }
+                                    onClick={() => handleActionClick(action)}
                                 >
-                                    {action.href ? (
-                                        <Link
-                                            href={action.href}
-                                            prefetch
-                                            className="flex items-center gap-2"
-                                        >
-                                            {action.icon && (
-                                                <span className="h-4 w-4">
-                                                    {action.icon}
-                                                </span>
-                                            )}
-                                            {action.title}
-                                        </Link>
-                                    ) : (
-                                        <span className="flex items-center gap-2">
-                                            {action.icon && (
-                                                <span className="h-4 w-4">
-                                                    {action.icon}
-                                                </span>
-                                            )}
-                                            {action.title}
-                                        </span>
-                                    )}
+                                    <span className="flex items-center gap-2">
+                                        {action.icon && (
+                                            <span className="h-4 w-4">
+                                                {action.icon}
+                                            </span>
+                                        )}
+                                        {action.title}
+                                    </span>
                                 </Button>
                             ))}
                         </div>

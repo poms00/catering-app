@@ -1,0 +1,119 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e7]:
+      - list [ref=e9]:
+        - listitem [ref=e10]:
+          - link "Laravel Starter Kit" [ref=e11] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e13]
+            - generic [ref=e16]: Laravel Starter Kit
+      - generic [ref=e18]:
+        - generic [ref=e19]: Platform
+        - list [ref=e20]:
+          - listitem [ref=e21]:
+            - link "Dashboard" [ref=e22] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e23]
+              - generic [ref=e28]: Dashboard
+          - listitem [ref=e29]:
+            - link "Menu" [ref=e30] [cursor=pointer]:
+              - /url: /menu
+              - img [ref=e31]
+              - generic [ref=e36]: Menu
+      - generic [ref=e37]:
+        - list [ref=e40]:
+          - listitem [ref=e41]:
+            - link "Repository" [ref=e42] [cursor=pointer]:
+              - /url: https://github.com/laravel/react-starter-kit
+              - img [ref=e43]
+              - generic [ref=e48]: Repository
+          - listitem [ref=e49]:
+            - link "Documentation" [ref=e50] [cursor=pointer]:
+              - /url: https://laravel.com/docs/starter-kits#react
+              - img [ref=e51]
+              - generic [ref=e53]: Documentation
+        - list [ref=e54]:
+          - listitem [ref=e55]:
+            - button "CT Codex Test" [ref=e56]:
+              - generic [ref=e58]: CT
+              - generic [ref=e60]: Codex Test
+              - img [ref=e61]
+    - main [ref=e64]:
+      - generic [ref=e66]:
+        - button "Toggle sidebar" [ref=e67]:
+          - img
+          - generic [ref=e68]: Toggle sidebar
+        - navigation "breadcrumb" [ref=e69]:
+          - list [ref=e70]:
+            - listitem [ref=e71]:
+              - link "Menu" [ref=e72] [cursor=pointer]:
+                - /url: /menu
+            - listitem [ref=e73]:
+              - img [ref=e74]
+            - listitem [ref=e76]:
+              - link "Detail" [disabled] [ref=e77]
+            - listitem [ref=e78]:
+              - img [ref=e79]
+            - listitem [ref=e81]:
+              - link "Edit" [disabled] [ref=e82]
+      - generic [ref=e83]:
+        - generic [ref=e86]:
+          - generic [ref=e87]:
+            - generic [ref=e88]:
+              - button [ref=e89]:
+                - img [ref=e90]
+              - heading "Edit Menu" [level=1] [ref=e92]
+            - paragraph [ref=e93]: Perbarui menu single pada halaman edit yang sama.
+          - generic [ref=e94]:
+            - button "Batal" [ref=e95]:
+              - generic [ref=e96]: Batal
+            - button "Simpan Perubahan" [ref=e97]:
+              - generic [ref=e98]: Simpan Perubahan
+        - main [ref=e100]:
+          - heading "Informasi Varian" [level=2] [ref=e101]
+          - generic [ref=e102]:
+            - generic [ref=e103]:
+              - generic [ref=e104]:
+                - heading "Varian Menu" [level=3] [ref=e105]
+                - paragraph [ref=e106]: Tambah, edit, hapus, dan urutkan varian dalam grup ini.
+                - paragraph [ref=e107]: Urutan 1 otomatis menjadi varian default.
+              - button "Tambah Varian" [ref=e108]:
+                - img
+                - text: Tambah Varian
+            - generic [ref=e109]:
+              - table [ref=e111]:
+                - rowgroup [ref=e112]:
+                  - row "Urutan Foto Nama Varian Harga Dasar Status Aksi" [ref=e113]:
+                    - columnheader [ref=e114]
+                    - columnheader "Urutan" [ref=e115]
+                    - columnheader "Foto" [ref=e116]
+                    - columnheader "Nama Varian" [ref=e117]
+                    - columnheader "Harga Dasar" [ref=e118]
+                    - columnheader "Status" [ref=e119]
+                    - columnheader "Aksi" [ref=e120]
+                - rowgroup [ref=e121]:
+                  - row "Drag to reorder 1 Debug Single Item Rp 12.000,00" [ref=e122]:
+                    - cell "Drag to reorder" [ref=e123]:
+                      - button "Drag to reorder" [ref=e124]:
+                        - img [ref=e125]
+                    - cell "1" [ref=e132]:
+                      - generic [ref=e133]: "1"
+                    - cell [ref=e134]:
+                      - img [ref=e137]
+                    - cell "Debug Single Item" [ref=e141]:
+                      - textbox [ref=e142]: Debug Single Item
+                    - cell "Rp 12.000,00" [ref=e143]:
+                      - generic [ref=e144]:
+                        - generic [ref=e145]: Rp
+                        - textbox [ref=e146]: 12.000,00
+                    - cell [ref=e147]:
+                      - switch [checked] [ref=e148]
+                    - cell [ref=e149]:
+                      - generic [ref=e150]:
+                        - button [ref=e151]:
+                          - img
+                        - button [ref=e152]:
+                          - img
+              - status [ref=e153]
+            - paragraph [ref=e154]: Total 1 varian
+  - region "Notifications alt+T"

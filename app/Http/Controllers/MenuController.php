@@ -18,10 +18,20 @@ use App\Models\MenuImage;
 use App\Models\MenuItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Response;
 
 class MenuController extends Controller
 {
+    private const DETAIL_PAGE = 'admin/menu/show-detail-menu';
+
+    private const EDIT_PAGE = 'admin/menu/edit-menu';
+
+    private const MENU_TYPE_GROUP = 'group';
+
+    private const MENU_TYPE_ITEM = 'item';
+
     public function __construct(
         private readonly MenuCategoryAction $categoryAction,
         private readonly MenuGroupAction $groupAction,
@@ -51,189 +61,680 @@ class MenuController extends Controller
     public function create(): Response
     {
         return inertia('admin/menu/create-menu', [
-            'menuCategories' => MenuCategory::active()->ordered()->get(['id', 'name']),
-            'menuGroups' => MenuGroup::active()->ordered()->get(['id', 'name', 'menu_category_id']),
+            'grup' => null,
+            'menuType' => 'create',
+            'varianList' => [],
+            ...$this->menuFormOptions(),
         ]);
     }
 
     public function store(StoreMenuGroupRequest $request): RedirectResponse
     {
-        $validated = $request->validated();
+        $validated = $this->resolveCategoryDrafts($request->validated());
+
+        if (isset($validated['entries']) && is_array($validated['entries'])) {
+            return $this->storeBuilderEntries($validated['entries']);
+        }
+
         $variants = $validated['variants'];
 
-        // Pakai grup yang sudah ada
-        if (!empty($validated['menu_group_id'])) {
+        if (! empty($validated['menu_group_id'])) {
             $group = MenuGroup::findOrFail($validated['menu_group_id']);
-
-            foreach ($variants as $variant) {
-                $this->itemAction->create([
-                    ...$variant,
-                    'menu_group_id' => $group->id,
-                ]);
-            }
+            $this->createVariantsForGroup($group, $variants);
 
             return redirect()
-                ->route('menu.show', $group)
+                ->route('menu.index')
                 ->with('success', "Menu berhasil ditambahkan ke grup \"{$group->name}\".");
         }
 
-        // Buat grup baru
         if ($request->boolean('creates_with_group')) {
             $group = $this->groupAction->create(
                 data: $validated,
                 image: $request->file('image'),
             );
-
-            foreach ($variants as $variant) {
-                $this->itemAction->create([
-                    ...$variant,
-                    'menu_group_id' => $group->id,
-                ]);
-            }
+            $this->createVariantsForGroup($group, $variants);
 
             return redirect()
-                ->route('menu.show', $group)
+                ->route('menu.index')
                 ->with('success', "Grup \"{$group->name}\" berhasil dibuat.");
         }
 
-        // Standalone item
         $variant = $variants[0];
-        $item = $this->itemAction->create([
-            ...$variant,
-            'is_default' => true,
-        ]);
+
+        if (! array_key_exists('menu_category_id', $variant)) {
+            $variant['menu_category_id'] = $validated['menu_category_id'] ?? null;
+        }
+
+        if (! array_key_exists('menu_category_ids', $variant) && isset($validated['menu_category_ids'])) {
+            $variant['menu_category_ids'] = $validated['menu_category_ids'];
+        }
+
+        $item = $this->createStandaloneItem($variant);
 
         return redirect()
-            ->route('menu.show', ['menu' => $item, 'type' => 'item'])
+            ->route('menu.index')
             ->with('success', "Menu \"{$item->name}\" berhasil dibuat.");
+    }
+
+    private function storeBuilderEntries(array $entries): RedirectResponse
+    {
+        [$createdWrapperCount, $createdSingleCount] = DB::transaction(
+            function () use ($entries): array {
+                $wrapperOrder = 1;
+                $singleOrder = 1;
+                $createdWrapperCount = 0;
+                $createdSingleCount = 0;
+
+                foreach ($entries as $entry) {
+                    if (($entry['type'] ?? null) === self::MENU_TYPE_GROUP || ($entry['type'] ?? null) === 'wrapper') {
+                        $group = $this->groupAction->create(
+                            data: [
+                                'menu_category_id' => $entry['menu_category_id'] ?? null,
+                                'name' => $entry['name'] ?? '',
+                                'description' => $entry['description'] ?? null,
+                                'sort_order' => $wrapperOrder,
+                                'is_active' => $entry['is_active'] ?? true,
+                            ],
+                            image: $entry['image'] ?? null,
+                        );
+
+                        $this->createVariantsForGroup(
+                            $group,
+                            $entry['variants'] ?? [],
+                        );
+
+                        $wrapperOrder++;
+                        $createdWrapperCount++;
+
+                        continue;
+                    }
+
+                    $variant = $entry['variants'][0] ?? null;
+
+                    if (! is_array($variant)) {
+                        continue;
+                    }
+
+                    $this->itemAction->create(
+                        data: [
+                            ...$variant,
+                            'sort_order' => $singleOrder,
+                            'is_default' => true,
+                            'menu_group_id' => null,
+                        ],
+                        image: $variant['image'] ?? null,
+                    );
+
+                    $singleOrder++;
+                    $createdSingleCount++;
+                }
+
+                return [$createdWrapperCount, $createdSingleCount];
+            },
+        );
+
+        $createdEntryCount = $createdWrapperCount + $createdSingleCount;
+
+        return redirect()
+            ->route('menu.index')
+            ->with(
+                'success',
+                "{$createdEntryCount} entri menu berhasil dibuat."
+            );
     }
 
     public function show(Request $request, string $menu): Response
     {
+        if ($this->wantsStandaloneItem($request)) {
+            return $this->renderStandaloneItemShowPage(
+                $this->findStandaloneItemOrFail($menu),
+            );
+        }
+
         $group = MenuGroup::query()->find($menu);
 
-        if ($request->query('type') === 'item') {
-            return $this->showStandaloneItem($menu);
-        }
-
         if ($group instanceof MenuGroup) {
-            $group->load([
-                'menuCategory:id,name',
-                'images' => fn ($q) => $q->orderBy('sort_order'),
-                'menuItems' => fn ($q) => $q->ordered(),
-                'menuItems.images' => fn ($q) => $q->orderBy('sort_order'),
-            ]);
-
-            return inertia('admin/menu/show-detail-menu', [
-                'group' => $group,
-                'canEdit' => true,
-            ]);
+            return $this->renderGroupShowPage($group);
         }
 
-        return $this->showStandaloneItem($menu);
+        return $this->renderStandaloneItemShowPage(
+            $this->findStandaloneItemOrFail($menu),
+        );
     }
 
-    private function showStandaloneItem(string $itemId): Response
+    public function edit(Request $request, string $menu): Response|RedirectResponse
     {
-        $item = MenuItem::query()
-            ->whereNull('menu_group_id')
-            ->with([
-                'images' => fn ($q) => $q->orderBy('sort_order'),
-            ])
-            ->findOrFail($itemId);
+        if ($this->wantsStandaloneItem($request)) {
+            return $this->renderStandaloneItemEditPage(
+                $this->findStandaloneItemOrFail($menu),
+            );
+        }
 
-        return inertia('admin/menu/show-detail-menu', [
-            'group' => [
-                'id' => $item->id,
-                'menu_category_id' => null,
-                'name' => $item->name,
-                'slug' => $item->slug,
-                'description' => $item->description,
-                'sort_order' => $item->sort_order,
-                'is_active' => $item->is_active,
-                'created_at' => $item->created_at?->toISOString(),
-                'updated_at' => $item->updated_at?->toISOString(),
-                'created_by' => $item->created_by,
-                'updated_by' => $item->updated_by,
-                'images' => [],
-                'menu_category' => null,
-                'menu_items' => [
-                    [
-                        'id' => $item->id,
-                        'menu_group_id' => null,
-                        'menu_category_id' => null,
-                        'name' => $item->name,
-                        'slug' => $item->slug,
-                        'base_price' => $item->base_price,
-                        'description' => $item->description,
-                        'is_default' => $item->is_default,
-                        'sort_order' => $item->sort_order,
-                        'is_active' => $item->is_active,
-                        'created_at' => $item->created_at?->toISOString(),
-                        'updated_at' => $item->updated_at?->toISOString(),
-                        'created_by' => $item->created_by,
-                        'updated_by' => $item->updated_by,
-                        'images' => $item->images->map(fn (MenuImage $image) => [
-                            'id' => $image->id,
-                            'menu_item_id' => $image->menu_item_id,
-                            'menu_group_id' => $image->menu_group_id,
-                            'image_url' => $image->image_url,
-                            'is_primary' => $image->is_primary,
-                            'sort_order' => $image->sort_order,
-                            'created_at' => $image->created_at?->toISOString(),
-                        ])->values(),
-                        'primary_image' => $item->images
-                            ->firstWhere('is_primary', true)?->image_url,
-                        'menu_group' => null,
-                        'menu_category' => null,
-                    ],
-                ],
-            ],
-            'canEdit' => false,
-        ]);
+        $group = MenuGroup::query()->find($menu);
+
+        if (! $group instanceof MenuGroup) {
+            $item = MenuItem::query()->findOrFail($menu);
+
+            if ($item->menu_group_id !== null) {
+                return redirect()->route('menu.edit', $item->menu_group_id);
+            }
+
+            return $this->renderStandaloneItemEditPage($item);
+        }
+
+        return $this->renderGroupEditPage($group);
     }
 
-    public function edit(MenuGroup $menu): Response
+    public function update(UpdateMenuGroupRequest $request, string $menu): RedirectResponse
     {
-        $group = $menu;
+        $validated = $request->validated();
+        $validated['variants'] = $this->preserveVariantGroupSelections(
+            $request->input('variants', []),
+            $validated['variants'] ?? [],
+        );
+        $validated = $this->resolveCategoryDrafts($validated);
 
-        $group->load([
-            'menuCategory:id,name',
-            'images' => fn ($q) => $q->orderBy('sort_order'),
-            'menuItems' => fn ($q) => $q->ordered(),
-            'menuItems.images' => fn ($q) => $q->orderBy('sort_order'),
-        ]);
+        if ($this->wantsStandaloneItem($request)) {
+            return $this->updateStandaloneItem($menu, $validated, $request);
+        }
 
-        $categories = MenuCategory::active()->ordered()->get(['id', 'name']);
-
-        $itemList = $group->menuItems->map(fn (MenuItem $item) => [
-            'id' => $item->id,
-            'name' => $item->name,
-            'image_url' => $item->images->first()?->image_url,
-            'base_price' => $item->base_price,
-            'is_active' => $item->is_active,
-            'is_default' => $item->is_default,
-            'sort_order' => $item->sort_order,
-        ]);
-
-        return inertia('admin/menu/edit', [
-            'group' => $group,
-            'itemList' => $itemList,
-            'categories' => $categories,
-        ]);
-    }
-
-    public function update(UpdateMenuGroupRequest $request, MenuGroup $menu): RedirectResponse
-    {
-        $group = $menu;
+        $group = MenuGroup::query()->findOrFail($menu);
 
         $this->groupAction->update(
             group: $group,
-            data: $request->validated(),
+            data: $validated,
             image: $request->file('image'),
         );
+        $this->groupAction->syncVariants($group, $validated['variants']);
 
-        return back()->with('success', "Grup \"{$group->name}\" berhasil diperbarui.");
+        $updatedGroup = $group->fresh();
+
+        return $this->redirectToGroupShowPage(
+            $updatedGroup,
+            "Grup \"{$updatedGroup->name}\" berhasil diperbarui.",
+        );
+    }
+
+    private function renderGroupShowPage(MenuGroup $group): Response
+    {
+        return $this->renderShowPage(
+            $this->loadGroupDetailRelations($group),
+            self::MENU_TYPE_GROUP,
+        );
+    }
+
+    private function renderStandaloneItemShowPage(MenuItem $item): Response
+    {
+        return $this->renderShowPage(
+            $this->standaloneItemGroupPayload($item),
+            self::MENU_TYPE_ITEM,
+        );
+    }
+
+    private function renderGroupEditPage(MenuGroup $group): Response
+    {
+        $loadedGroup = $this->loadGroupDetailRelations($group);
+        $variantList = $loadedGroup->menuItems
+            ->map(fn (MenuItem $item): array => $this->editVariantPayload($item))
+            ->values()
+            ->all();
+
+        return $this->renderEditPage(
+            group: $loadedGroup,
+            variantList: $variantList,
+            menuType: self::MENU_TYPE_GROUP,
+        );
+    }
+
+    private function renderStandaloneItemEditPage(MenuItem $item): Response
+    {
+        return $this->renderEditPage(
+            group: null,
+            variantList: [$this->editVariantPayload($item)],
+            menuType: self::MENU_TYPE_ITEM,
+            menuId: $item->id,
+        );
+    }
+
+    private function updateStandaloneItem(
+        string $itemId,
+        array $validated,
+        UpdateMenuGroupRequest $request,
+    ): RedirectResponse {
+        $item = MenuItem::query()
+            ->whereNull('menu_group_id')
+            ->findOrFail($itemId);
+        $variant = $validated['variants'][0];
+        $image = $variant['image'] ?? null;
+
+        $this->itemAction->update(
+            item: $item,
+            data: [
+                ...$variant,
+                'is_default' => true,
+                'menu_group_id' => $variant['menu_group_id'] ?? null,
+            ],
+            image: $image,
+        );
+
+        $updatedItem = $item->fresh();
+
+        if ($updatedItem->menu_group_id !== null) {
+            $targetGroup = MenuGroup::query()->findOrFail($updatedItem->menu_group_id);
+
+            return $this->redirectToGroupShowPage(
+                $targetGroup,
+                "Menu \"{$updatedItem->name}\" berhasil dipindahkan ke grup.",
+            );
+        }
+
+        return $this->redirectToStandaloneItemShowPage(
+            $updatedItem,
+            "Menu \"{$updatedItem->name}\" berhasil diperbarui.",
+        );
+    }
+
+    private function createVariantsForGroup(MenuGroup $group, array $variants): void
+    {
+        foreach ($variants as $variant) {
+            if (! array_key_exists('menu_category_id', $variant)) {
+                $variant['menu_category_id'] = $group->menu_category_id;
+            }
+
+            if (! array_key_exists('menu_category_ids', $variant)) {
+                $variant['menu_category_ids'] = filled($variant['menu_category_id'] ?? null)
+                    ? [(int) $variant['menu_category_id']]
+                    : [];
+            }
+
+            $this->itemAction->create(
+                data: [
+                    ...$variant,
+                    'menu_group_id' => $group->id,
+                ],
+                image: $variant['image'] ?? null,
+            );
+        }
+    }
+
+    private function createStandaloneItem(array $variant): MenuItem
+    {
+        return $this->itemAction->create(
+            data: [
+                ...$variant,
+                'is_default' => true,
+                'menu_group_id' => null,
+            ],
+            image: $variant['image'] ?? null,
+        );
+    }
+
+    private function resolveCategoryDrafts(array $data): array
+    {
+        $categoryIdsByTempId = [];
+
+        foreach (($data['category_drafts'] ?? []) as $draft) {
+            if (! is_array($draft)) {
+                continue;
+            }
+
+            $tempId = (int) ($draft['temp_id'] ?? 0);
+            $name = trim((string) ($draft['name'] ?? ''));
+
+            if ($tempId >= 0 || $name === '') {
+                continue;
+            }
+
+            $category = MenuCategory::query()->firstOrCreate(
+                ['name' => $name],
+                [
+                    'slug' => $this->generateUniqueCategorySlug($name),
+                    'sort_order' => $this->nextCategorySortOrder(),
+                    'is_active' => true,
+                ],
+            );
+
+            $categoryIdsByTempId[$tempId] = $category->id;
+        }
+
+        unset($data['category_drafts']);
+
+        $data['menu_category_id'] = $this->resolveCategoryId(
+            $data['menu_category_id'] ?? null,
+            $categoryIdsByTempId,
+        );
+        $data['menu_category_ids'] = $this->resolveCategoryIds(
+            $data['menu_category_ids'] ?? [],
+            $categoryIdsByTempId,
+        );
+        if ($data['menu_category_ids'] === [] && $data['menu_category_id'] !== null) {
+            $data['menu_category_ids'] = [$data['menu_category_id']];
+        }
+        $data['menu_category_id'] ??= $data['menu_category_ids'][0] ?? null;
+
+        foreach (($data['entries'] ?? []) as $entryIndex => $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $data['entries'][$entryIndex]['menu_category_id'] = $this->resolveCategoryId(
+                $entry['menu_category_id'] ?? null,
+                $categoryIdsByTempId,
+            );
+            $data['entries'][$entryIndex]['menu_category_ids'] = $this->resolveCategoryIds(
+                $entry['menu_category_ids'] ?? [],
+                $categoryIdsByTempId,
+            );
+            if ($data['entries'][$entryIndex]['menu_category_ids'] === [] && $data['entries'][$entryIndex]['menu_category_id'] !== null) {
+                $data['entries'][$entryIndex]['menu_category_ids'] = [$data['entries'][$entryIndex]['menu_category_id']];
+            }
+            $data['entries'][$entryIndex]['menu_category_id'] ??= $data['entries'][$entryIndex]['menu_category_ids'][0] ?? null;
+
+            foreach (($entry['variants'] ?? []) as $variantIndex => $variant) {
+                if (! is_array($variant)) {
+                    continue;
+                }
+
+                $data['entries'][$entryIndex]['variants'][$variantIndex]['menu_category_id'] = $this->resolveCategoryId(
+                    $variant['menu_category_id'] ?? null,
+                    $categoryIdsByTempId,
+                );
+                $data['entries'][$entryIndex]['variants'][$variantIndex]['menu_category_ids'] = $this->resolveCategoryIds(
+                    $variant['menu_category_ids'] ?? [],
+                    $categoryIdsByTempId,
+                );
+                if ($data['entries'][$entryIndex]['variants'][$variantIndex]['menu_category_ids'] === [] && $data['entries'][$entryIndex]['variants'][$variantIndex]['menu_category_id'] !== null) {
+                    $data['entries'][$entryIndex]['variants'][$variantIndex]['menu_category_ids'] = [$data['entries'][$entryIndex]['variants'][$variantIndex]['menu_category_id']];
+                }
+                $data['entries'][$entryIndex]['variants'][$variantIndex]['menu_category_id'] ??= $data['entries'][$entryIndex]['variants'][$variantIndex]['menu_category_ids'][0] ?? null;
+            }
+        }
+
+        foreach (($data['variants'] ?? []) as $variantIndex => $variant) {
+            if (! is_array($variant)) {
+                continue;
+            }
+
+            $data['variants'][$variantIndex]['menu_category_id'] = $this->resolveCategoryId(
+                $variant['menu_category_id'] ?? null,
+                $categoryIdsByTempId,
+            );
+            $data['variants'][$variantIndex]['menu_category_ids'] = $this->resolveCategoryIds(
+                $variant['menu_category_ids'] ?? [],
+                $categoryIdsByTempId,
+            );
+            if ($data['variants'][$variantIndex]['menu_category_ids'] === [] && $data['variants'][$variantIndex]['menu_category_id'] !== null) {
+                $data['variants'][$variantIndex]['menu_category_ids'] = [$data['variants'][$variantIndex]['menu_category_id']];
+            }
+            $data['variants'][$variantIndex]['menu_category_id'] ??= $data['variants'][$variantIndex]['menu_category_ids'][0] ?? null;
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param  array<int, int>  $categoryIdsByTempId
+     */
+    private function resolveCategoryId(mixed $categoryId, array $categoryIdsByTempId): ?int
+    {
+        if ($categoryId === null || $categoryId === '') {
+            return null;
+        }
+
+        $categoryId = (int) $categoryId;
+
+        if ($categoryId < 0) {
+            return $categoryIdsByTempId[$categoryId] ?? null;
+        }
+
+        return $categoryId;
+    }
+
+    /**
+     * @param  array<int, int>  $categoryIdsByTempId
+     * @return array<int, int>
+     */
+    private function resolveCategoryIds(mixed $categoryIds, array $categoryIdsByTempId): array
+    {
+        if (! is_array($categoryIds)) {
+            return [];
+        }
+
+        return collect($categoryIds)
+            ->map(fn (mixed $categoryId): ?int => $this->resolveCategoryId($categoryId, $categoryIdsByTempId))
+            ->filter(fn (?int $categoryId): bool => $categoryId !== null)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function nextCategorySortOrder(): int
+    {
+        return ((int) MenuCategory::query()->max('sort_order')) + 1;
+    }
+
+    private function generateUniqueCategorySlug(string $name): string
+    {
+        $baseSlug = Str::slug($name);
+        $baseSlug = $baseSlug !== '' ? $baseSlug : 'kategori';
+        $slug = $baseSlug;
+        $suffix = 2;
+
+        while (MenuCategory::query()->where('slug', $slug)->exists()) {
+            $slug = "{$baseSlug}-{$suffix}";
+            $suffix++;
+        }
+
+        return $slug;
+    }
+
+    private function findStandaloneItemOrFail(string $itemId): MenuItem
+    {
+        return MenuItem::query()
+            ->whereNull('menu_group_id')
+            ->with([
+                'menuCategory:id,name',
+                'menuCategories:id,name',
+                'images' => fn ($query) => $query->orderBy('sort_order'),
+            ])
+            ->findOrFail($itemId);
+    }
+
+    private function loadGroupDetailRelations(MenuGroup $group): MenuGroup
+    {
+        $group->load([
+            'menuCategory:id,name',
+            'images' => fn ($query) => $query->orderBy('sort_order'),
+            'menuItems' => fn ($query) => $query->ordered(),
+            'menuItems.menuCategory:id,name',
+            'menuItems.menuCategories:id,name',
+            'menuItems.menuGroup:id,menu_category_id',
+            'menuItems.images' => fn ($query) => $query->orderBy('sort_order'),
+        ]);
+
+        return $group;
+    }
+
+    private function renderShowPage(MenuGroup|array $group, string $menuType): Response
+    {
+        return inertia(self::DETAIL_PAGE, [
+            'group' => $group,
+            'canEdit' => true,
+            'menuType' => $menuType,
+        ]);
+    }
+
+    private function renderEditPage(
+        ?MenuGroup $group,
+        array $variantList,
+        string $menuType,
+        ?int $menuId = null,
+    ): Response {
+        $props = [
+            'grup' => $group,
+            'varianList' => $variantList,
+            ...$this->menuFormOptions(),
+            'menuType' => $menuType,
+        ];
+
+        if ($menuId !== null) {
+            $props['menuId'] = $menuId;
+        }
+
+        return inertia(self::EDIT_PAGE, $props);
+    }
+
+    private function menuFormOptions(): array
+    {
+        return [
+            'menuCategories' => MenuCategory::ordered()->get(['id', 'name']),
+            'menuGroups' => MenuGroup::ordered()->get(['id', 'name', 'menu_category_id', 'is_active']),
+        ];
+    }
+
+    private function wantsStandaloneItem(Request $request): bool
+    {
+        return $request->query('type') === self::MENU_TYPE_ITEM;
+    }
+
+    private function editVariantPayload(MenuItem $item): array
+    {
+        return [
+            'id' => $item->id,
+            'menu_group_id' => $item->menu_group_id,
+            'menu_category_id' => $item->menu_category_id,
+            'menu_category_ids' => $item->menuCategories->pluck('id')->values()->all(),
+            'name' => $item->name,
+            'image_url' => $item->images->first()?->image_url,
+            'base_price' => $item->base_price,
+            'description' => $item->description,
+            'is_active' => $item->is_active,
+            'is_default' => $item->is_default,
+            'sort_order' => $item->sort_order,
+        ];
+    }
+
+    private function standaloneItemGroupPayload(MenuItem $item): array
+    {
+        return [
+            'id' => $item->id,
+            'menu_category_id' => $item->menu_category_id,
+            'menu_category_ids' => $item->menuCategories->pluck('id')->values()->all(),
+            'name' => $item->name,
+            'slug' => $item->slug,
+            'description' => $item->description,
+            'sort_order' => $item->sort_order,
+            'is_active' => $item->is_active,
+            'created_at' => $item->created_at?->toISOString(),
+            'updated_at' => $item->updated_at?->toISOString(),
+            'created_by' => $item->created_by,
+            'updated_by' => $item->updated_by,
+            'images' => [],
+            'menu_category' => $item->menuCategory
+                ? [
+                    'id' => $item->menuCategory->id,
+                    'name' => $item->menuCategory->name,
+                ]
+                : null,
+            'menu_categories' => $item->menuCategories
+                ->map(fn (MenuCategory $category): array => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                ])
+                ->values()
+                ->all(),
+            'menu_items' => [
+                [
+                    'id' => $item->id,
+                    'menu_group_id' => null,
+                    'menu_category_id' => $item->menu_category_id,
+                    'menu_category_ids' => $item->menuCategories->pluck('id')->values()->all(),
+                    'name' => $item->name,
+                    'slug' => $item->slug,
+                    'base_price' => $item->base_price,
+                    'description' => $item->description,
+                    'is_default' => $item->is_default,
+                    'sort_order' => $item->sort_order,
+                    'is_active' => $item->is_active,
+                    'created_at' => $item->created_at?->toISOString(),
+                    'updated_at' => $item->updated_at?->toISOString(),
+                    'created_by' => $item->created_by,
+                    'updated_by' => $item->updated_by,
+                    'images' => $item->images
+                        ->map(fn (MenuImage $image): array => $this->menuImagePayload($image))
+                        ->values(),
+                    'primary_image' => $item->images->firstWhere('is_primary', true)?->image_url,
+                    'menu_group' => null,
+                    'menu_category' => $item->menuCategory
+                        ? [
+                            'id' => $item->menuCategory->id,
+                            'name' => $item->menuCategory->name,
+                        ]
+                        : null,
+                    'menu_categories' => $item->menuCategories
+                        ->map(fn (MenuCategory $category): array => [
+                            'id' => $category->id,
+                            'name' => $category->name,
+                        ])
+                        ->values()
+                        ->all(),
+                ],
+            ],
+        ];
+    }
+
+    private function menuImagePayload(MenuImage $image): array
+    {
+        return [
+            'id' => $image->id,
+            'menu_item_id' => $image->menu_item_id,
+            'menu_group_id' => $image->menu_group_id,
+            'image_url' => $image->image_url,
+            'is_primary' => $image->is_primary,
+            'sort_order' => $image->sort_order,
+            'created_at' => $image->created_at?->toISOString(),
+        ];
+    }
+
+    private function preserveVariantGroupSelections(array $requestedVariants, array $validatedVariants): array
+    {
+        return collect($validatedVariants)
+            ->map(function (array $variant, int $index) use ($requestedVariants): array {
+                if (! array_key_exists($index, $requestedVariants)) {
+                    return $variant;
+                }
+
+                $requestedVariant = $requestedVariants[$index];
+
+                if (! is_array($requestedVariant) || ! array_key_exists('menu_group_id', $requestedVariant)) {
+                    return $variant;
+                }
+
+                $variant['menu_group_id'] = filled($requestedVariant['menu_group_id'])
+                    ? (int) $requestedVariant['menu_group_id']
+                    : null;
+
+                return $variant;
+            })
+            ->values()
+            ->all();
+    }
+
+    private function redirectToGroupShowPage(MenuGroup $group, string $message): RedirectResponse
+    {
+        return redirect()
+            ->route('menu.show', $group)
+            ->with('success', $message);
+    }
+
+    private function redirectToStandaloneItemShowPage(MenuItem $item, string $message): RedirectResponse
+    {
+        return redirect()
+            ->route('menu.show', [
+                'menu' => $item->id,
+                'type' => self::MENU_TYPE_ITEM,
+            ])
+            ->with('success', $message);
     }
 
     public function destroy(MenuGroup $menu): RedirectResponse
